@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+        Dashboard
+    </title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Symbols+Sharp" rel="stylesheet" />
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <link rel="stylesheet" href="./style.css" />
+</head>
+
+<body>
+    <div class="container">
+        <aside>
+            <div class="top">
+                <div class="logo">
+                    <h2>IOT</h2>
+                </div>
+                <div class="close" id="close-btn">
+                    <span class="material-symbols-sharp"> close </span>
+                </div>
+            </div>
+            <div class="sidebar">
+                <a href="#" class="active">
+                    <span class="material-symbols-sharp"> dashboard </span>
+                    <h3>Dashboard</h3>
+                </a>
+                <a href="./profile.html" class="active">
+                    <span class="material-symbols-sharp"> person </span>
+                    <h3>Profile</h3>
+                </a>
+                <a href="./data.html" class="active">
+                    <span class="material-symbols-sharp"> demography </span>
+                    <h3>Data</h3>
+                </a>
+                <a href="./history.html" class="active">
+                    <span class="material-symbols-sharp"> demography </span>
+                    <h3>Led Action</h3>
+                </a>
+                <a href="./fan.html" class="active">
+                    <span class="material-symbols-sharp"> demography </span>
+                    <h3>Fan Action</h3>
+                </a>
+            </div>
+        </aside>
+        <main>
+            <h1>
+                Dashboard
+            </h1>
+            <div class="insights">
+                <div class="temperature" id="color1" style="background-color: rgba(255, 57, 45, 0.5) ">
+                    <div class="middle">
+                        <div class="left">
+                            <h3>Nhiệt độ</h3>
+                            <h1 id="temperature"></h1>
+                        </div>
+                        <div class="icon">
+                            <span class="material-symbols-sharp"> device_thermostat </span>
+                        </div>
+                    </div>
+                </div>
+                <!-- End of temperature -->
+                <div class="humidity" id="color2" style="background-color: rgba(83, 176, 241, 0.5)">
+                    <div class="middle">
+                        <div class="left">
+                            <h3>Độ ẩm</h3>
+                            <h1 id="humidity"></h1>
+                        </div>
+                        <div class="icon">
+                            <span class="material-symbols-sharp">
+                  humidity_percentage
+                </span>
+                        </div>
+                    </div>
+                </div>
+                <!-- End of humidity -->
+                <div class="pressure" id="color3" style="background-color: rgba(255, 255, 141, 0.5)">
+                    <div class="middle">
+                        <div class="left">
+                            <h3>Độ sáng</h3>
+                            <h1 id="light"></h1>
+                        </div>
+                        <div class="icon">
+                            <span class="material-symbols-sharp"> light </span>
+                        </div>
+                    </div>
+                </div>
+                <!-- End of pressure -->
+            </div>
+            <!-- End of Insights -->
+            <div class="histories">
+                <h2>Biểu đồ</h2>
+                <div class="history-charts">
+                    <div id="chart"></div>
+                    <div id="chart2"></div>
+                </div>
+            </div>
+        </main>
+        <div class="right">
+            <div class="top">
+                <button id="menu-btn">
+                  <span class="material-symbols-sharp"> menu </span>
+                </button>
+            </div>
+
+            <!-- End of top -->
+            <aside class="right-sidebar">
+                <div class="box">
+                    <img class="light-status" id="sts1" src="./img/0.png" width="100" height="125">
+                    <button class="ledOn" id="light1On">On</button>
+                    <button class="ledOff" id="light1Off">Off</button>
+                </div>
+                <div class="box">
+                    <img class="light-status" id="fan2" src="./img/2.jpg" width="100" height="125">
+                    <button class="ledOn" id="light2On">On</button>
+                    <button class="ledOff" id="light2Off">Off</button>
+                </div>
+            </aside>
+        </div>
+    </div>
+    <script src="./script.js"></script>
+    <script>
+        //Màu sắc
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchData();
+        });
+
+        const turnOn1 = document.getElementById('light1On');
+        const turnOff1 = document.getElementById('light1Off');
+        const turnOn2 = document.getElementById('light2On');
+        const turnOff2 = document.getElementById('light2Off');
+        const status1 = document.getElementById('sts1');
+        const status2 = document.getElementById('sts2');
+
+        // Define a variable to hold the interval ID
+        let fanInterval;
+
+        function toggleLight(imageElement, command) {
+            if (command === 'on') {
+                imageElement.src = './img/1.png';
+            } else if (command === 'off') {
+                imageElement.src = './img/0.png';
+            }
+        }
+
+        const fan2 = document.getElementById('fan2');
+        let fan2Rotation = 0;
+
+        function rotateFan() {
+            fan2.style.transform = `rotate(${fan2Rotation}deg)`;
+            fan2Rotation += 30;
+        }
+
+        turnOn1.addEventListener('click', () => {
+            sendData('1', status1);
+        });
+
+        turnOff1.addEventListener('click', () => {
+            sendData('0', status1);
+        });
+
+        turnOn2.addEventListener('click', () => {
+            sendData('3', status2);
+            fanInterval = setInterval(rotateFan, 250); // Start the fan rotation
+        });
+
+        turnOff2.addEventListener('click', () => {
+            sendData('2', status2);
+            clearInterval(fanInterval); // Stop the fan rotation
+        });
+
+        function sendData(command, imageElement) {
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', `http://localhost:3000/control?command=${command}`, true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status === 200) {
+                        toggleLight(imageElement, command === '1' || command === '3' ? 'on' : 'off');
+                    } else {
+                        console.error('Error:', xhr.statusText);
+                    }
+                }
+            }
+            xhr.send();
+        }
+        
+        
+
+        //Đồ thị
+        const socket = new WebSocket('ws://localhost:3000');
+
+        const temperatureColor = document.getElementById('color1');
+        const humidityColor = document.getElementById('color2');
+        const lightColor = document.getElementById('color3');
+
+        function updateBackgroundColor() {
+            const temperature = parseFloat(document.getElementById('temperature').innerText);
+            const humidity = parseFloat(document.getElementById('humidity').innerText);
+            const light = parseFloat(document.getElementById('light').innerText);
+
+
+            const color1 = document.getElementById('color1');
+            const color2 = document.getElementById('color2');
+            const color3 = document.getElementById('color3');
+
+
+
+            if (temperature > 35) {
+                temperatureColor.style.backgroundColor = 'rgba(255, 2, 0, 1)';
+            } else if (temperature > 26) {
+                temperatureColor.style.backgroundColor = 'rgba(232, 52, 58, 0.8)';
+            } else {
+                temperatureColor.style.backgroundColor = 'rgba(232, 52, 58, 0.5)';
+            }
+
+            if (humidity > 85) {
+                humidityColor.style.backgroundColor = 'rgba(80, 163, 255, 1)';
+            } else if (humidity > 50) {
+                humidityColor.style.backgroundColor = 'rgba(143, 255, 255, 1)';
+            }
+
+            if (light == 1024 || light == 1023) {
+                lightColor.style.backgroundColor = 'rgba(0, 0, 47, 1)';
+            } else if (light > 1000 && light < 1023) {
+                lightColor.style.backgroundColor = 'rgba(235, 232, 58, 1)';
+            } else if (light > 10 && light < 1000) {
+                lightColor.style.backgroundColor = 'rgba(235, 232, 58, 0.7)';
+            } 
+            else {
+                lightColor.style.backgroundColor = 'rgba(0, 0, 47, 1)';
+            }
+        }
+
+        socket.addEventListener('message', (event) => {
+            const data = JSON.parse(event.data);
+            const t = document.getElementById('temperature');
+            const h = document.getElementById('humidity');
+            const l = document.getElementById('light');
+
+            // Cập nhật giao diện người dùng với dữ liệu mới
+
+            t.textContent = `${data.temperature} °C`;
+            h.textContent = `${data.humidity} %`;
+            l.textContent = `${data.light} Lux`;
+
+            const time = new Date();
+            const temperature = data.temperature;
+            const humidity = data.humidity;
+            const light = data.light;
+
+            generateRandomData(time, temperature, humidity, light);
+            updateBackgroundColor();
+        });
+
+
+        let timeData = [];
+        let temperatureData = [];
+        let humidityData = [];
+        let lightData = [];
+
+        // Hàm sinh dữ liệu
+        function generateRandomData(time, temperature, humidity, light) {
+            timeData.push(time.toLocaleTimeString());
+            temperatureData.push(temperature);
+            humidityData.push(humidity);
+            lightData.push(light);
+
+            // Giới hạn số lượng dữ liệu hiển thị
+            const maxDataPoints = 10;
+            if (timeData.length > maxDataPoints) {
+                timeData.shift();
+                temperatureData.shift();
+                humidityData.shift();
+                lightData.shift();
+            }
+
+            // Cập nhật biểu đồ
+            updateChart();
+        }
+
+
+        // Khởi tạo biểu đồ
+        const trace1 = {
+            x: timeData,
+            y: temperatureData,
+            mode: 'line',
+            name:'Nhiệt độ',
+            line: {
+                color: 'red'
+            },
+            showlegend: false
+        };
+
+        const trace2 = {
+            x: timeData,
+            y: humidityData,
+            mode: 'line',
+            name:'Độ ẩm',
+            line: {
+                color: 'blue'
+            },
+            showlegend: false
+        };
+
+        const trace3 = {
+            x: timeData,
+            y: lightData,
+            mode: 'line',
+            name:'Ánh sáng',
+            line: {
+                color: 'yellow'
+            },
+            showlegend: false
+        };
+
+        const dataChart = [trace1, trace2, trace3];
+
+        const layout = {
+            title: 'Biểu đồ hiển thị',
+            xaxis: {
+                title: 'Thời gian'
+            },
+            yaxis: {
+                title: 'Giá trị'
+            }
+        };
+
+        Plotly.newPlot('chart', dataChart, layout);
+
+        // Cập nhật biểu đồ 1
+        function updateChart() {
+            setInterval(Plotly.update('chart', dataChart, layout), 3000);
+        }
+    </script>
+</body>
+
+</html>
